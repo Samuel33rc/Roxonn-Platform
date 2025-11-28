@@ -829,7 +829,10 @@ export async function registerRoutes(app: Express) {
     try {
       const { owner, repo, labels } = req.query;
       
-      if (!owner || !repo || typeof owner !== 'string' || typeof repo !== 'string') {
+      // Validate owner and repo against GitHub patterns
+      const validOwner = typeof owner === 'string' && /^[a-zA-Z\d-]{1,39}$/.test(owner);
+      const validRepo = typeof repo === 'string' && /^[a-zA-Z\d_.-]{1,100}$/.test(repo);
+      if (!validOwner || !validRepo) {
         return res.status(400).json({ error: 'Missing or invalid owner/repo parameters' });
       }
       
