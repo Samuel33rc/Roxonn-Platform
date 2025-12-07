@@ -18,7 +18,7 @@ router.get("/health", (req, res) => {
 });
 
 // Zoho CRM Integration Routes
-router.get("/zoho/auth", (req, res) => {
+router.get("/api/zoho/auth", (req, res) => {
   if (!isZohoConfigured()) {
     return res.status(500).json({ error: "Zoho CRM is not configured" });
   }
@@ -29,7 +29,7 @@ router.get("/zoho/auth", (req, res) => {
 });
 
 // Zoho OAuth callback handler
-router.get("/zoho/auth/callback", async (req, res) => {
+router.get("/api/zoho/auth/callback", async (req, res) => {
   const { code } = req.query;
 
   if (!code) {
@@ -54,7 +54,7 @@ router.get("/zoho/auth/callback", async (req, res) => {
 });
 
 // Get course videos with subscription gating
-router.get('/courses/:courseId/videos', requireAuth, csrfProtection, async (req, res) => {
+router.get('/api/courses/:courseId/videos', requireAuth, csrfProtection, async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -92,7 +92,7 @@ router.get('/courses/:courseId/videos', requireAuth, csrfProtection, async (req,
 });
 
 // Get course resource URL (requires subscription)
-router.get('/courses/:courseId/resources/:resourceType', requireAuth, csrfProtection, async (req, res) => {
+router.get('/api/courses/:courseId/resources/:resourceType', requireAuth, csrfProtection, async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -132,7 +132,7 @@ router.get('/courses/:courseId/resources/:resourceType', requireAuth, csrfProtec
 });
 
 // Submit course assignment
-router.post('/submit-assignment', requireAuth, csrfProtection, async (req, res) => {
+router.post('/api/submit-assignment', requireAuth, csrfProtection, async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
@@ -176,7 +176,7 @@ router.post('/submit-assignment', requireAuth, csrfProtection, async (req, res) 
 });
 
 // Token-specific endpoints
-router.get("/token/balance", requireAuth, async (req: Request, res: Response) => {
+router.get("/api/token/balance", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user;
     if (!user || !user.xdcWalletAddress) {
@@ -193,7 +193,7 @@ router.get("/token/balance", requireAuth, async (req: Request, res: Response) =>
 });
 
 // User Activity API - aggregates activity from multiple sources
-router.get('/user/activity', requireAuth, async (req: Request, res: Response) => {
+router.get('/api/user/activity', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user;
     if (!user) {
@@ -214,7 +214,7 @@ router.get('/user/activity', requireAuth, async (req: Request, res: Response) =>
 });
 
 // Protected profile routes
-router.patch("/profile", requireAuth, csrfProtection, async (req, res) => {
+router.patch("/api/profile", requireAuth, csrfProtection, async (req, res) => {
   const { updateProfileSchema } = await import('@shared/schema');
   const { storage } = await import('../storage');
   
