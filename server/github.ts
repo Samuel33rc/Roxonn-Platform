@@ -1057,8 +1057,10 @@ export async function handleIssueClosed(payload: WebhookPayload, installationId:
                                 sourceIssue?.pull_request?.merged_at !== null;
 
                if (isMerged) {
-                   closingPRAuthor = event.actor.login; // The actor of the cross-reference IS the contributor
-                   log(`Found contributor '${closingPRAuthor}' via merged cross-referenced PR event.`, 'webhook-issue');
+                   // Use the PR author (sourceIssue.user.login), not the cross-reference actor
+                   // The actor might be someone who edited the PR to add "Fixes #X", not the actual contributor
+                   closingPRAuthor = sourceIssue.user?.login || event.actor.login;
+                   log(`Found contributor '${closingPRAuthor}' via merged cross-referenced PR event (PR author: ${sourceIssue.user?.login}, event actor: ${event.actor.login}).`, 'webhook-issue');
                    break; // Stop searching, we found the contributor
                } else {
                    log(`[Timeline Event ${i}] Cross-referenced source PR not marked as merged. State: ${sourceIssue?.state}, Merged At: ${sourceIssue?.pull_request?.merged_at}`, 'webhook-issue'); // Log merged_at
