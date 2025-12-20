@@ -23,6 +23,14 @@ class BusinessError extends Error {
   }
 }
 
+const updateBountyRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many bounty update requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rate limiters for promotional bounties endpoints
 const submissionRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -295,7 +303,7 @@ router.post('/bounties', requireAuth, csrfProtection, createBountyRateLimiter, a
 
 
 // Update bounty status
-router.patch('/bounties/:id/status', requireAuth, csrfProtection, createBountyRateLimiter, async (req: Request, res: Response) => {
+router.patch('/bounties/:id/status', requireAuth, csrfProtection, updateBountyRateLimiter, async (req: Request, res: Response) => {
   try {
     const bountyId = parseInt(req.params.id, 10);
     if (isNaN(bountyId)) {
