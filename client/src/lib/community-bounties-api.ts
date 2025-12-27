@@ -15,6 +15,8 @@
  * - GET /api/community-bounties/leaderboard - Top contributors
  */
 
+import csrfService from './csrf';
+
 export interface CommunityBounty {
   id: number;
   githubRepoOwner: string;
@@ -124,11 +126,13 @@ class CommunityBountiesAPI {
    * Create a new community bounty (DB record only, no payment yet)
    */
   async create(input: CreateCommunityBountyInput): Promise<{ bounty: CommunityBounty; message: string }> {
+    const csrfHeaders = await csrfService.addTokenToHeaders({
+      'Content-Type': 'application/json',
+    });
+
     const response = await fetch(this.baseURL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: csrfHeaders,
       credentials: 'include',
       body: JSON.stringify(input),
     });
@@ -151,11 +155,13 @@ class CommunityBountiesAPI {
     bounty: CommunityBounty;
     message: string;
   }> {
+    const csrfHeaders = await csrfService.addTokenToHeaders({
+      'Content-Type': 'application/json',
+    });
+
     const response = await fetch(`${this.baseURL}/${bountyId}/pay`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: csrfHeaders,
       credentials: 'include',
     });
 
@@ -175,11 +181,13 @@ class CommunityBountiesAPI {
     bounty: CommunityBounty;
     message: string;
   }> {
+    const csrfHeaders = await csrfService.addTokenToHeaders({
+      'Content-Type': 'application/json',
+    });
+
     const response = await fetch(`${this.baseURL}/${bountyId}/claim`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: csrfHeaders,
       credentials: 'include',
       body: JSON.stringify({ prNumber, prUrl }),
     });

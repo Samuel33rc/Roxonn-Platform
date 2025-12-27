@@ -659,7 +659,7 @@ export const communityBounties = pgTable("community_bounties", {
 
   // Status lifecycle
   status: text("status").default("pending_payment").notNull(),
-  // 'pending_payment' → 'funded' → 'claimed' → 'completed' | 'refunded' | 'expired'
+  // 'pending_payment' → 'funded' → 'claimed' → 'completed' | 'refunded' | 'expired' | 'failed_verification'
 
   // Claim tracking
   claimedByUserId: integer("claimed_by_user_id").references(() => users.id, { onDelete: 'set null' }),
@@ -704,7 +704,7 @@ export const createCommunityBountySchema = z.object({
 });
 
 export const updateCommunityBountySchema = z.object({
-  status: z.enum(['pending_payment', 'funded', 'claimed', 'completed', 'refunded', 'expired']).optional(),
+  status: z.enum(['pending_payment', 'funded', 'claimed', 'completed', 'refunded', 'expired', 'failed_verification']).optional(),
   paymentStatus: z.enum(['pending', 'completed', 'failed']).optional(),
   paymentMethod: z.enum(['crypto', 'fiat']).optional(),
   escrowTxHash: z.string().optional(),

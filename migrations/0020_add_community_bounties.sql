@@ -115,7 +115,8 @@ CREATE TABLE IF NOT EXISTS community_bounties (
     'claimed',
     'completed',
     'refunded',
-    'expired'
+    'expired',
+    'failed_verification'
   )),
   CONSTRAINT check_payment_status CHECK (payment_status IN ('pending', 'completed', 'failed')),
   CONSTRAINT check_payment_method CHECK (payment_method IN ('crypto', 'fiat'))
