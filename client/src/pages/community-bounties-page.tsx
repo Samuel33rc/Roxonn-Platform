@@ -55,7 +55,7 @@ export default function CommunityBountiesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("funded");
+  const [statusFilter, setStatusFilter] = useState<string>(""); // Show all statuses by default
   const [currencyFilter, setCurrencyFilter] = useState<string>("");
   const [selectedBounty, setSelectedBounty] = useState<CommunityBounty | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
