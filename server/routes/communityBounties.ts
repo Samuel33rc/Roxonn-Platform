@@ -42,7 +42,11 @@ class BusinessError extends Error {
 const createBountyRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // Max 10 bounties per hour per user
-  message: 'Too many bounty creation requests, please try again later.',
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many bounty creation requests, please try again later.'
+    });
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -50,7 +54,11 @@ const createBountyRateLimiter = rateLimit({
 const payBountyRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20, // Max 20 payment attempts per 15 minutes
-  message: 'Too many payment requests, please try again later.',
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many payment requests, please try again later.'
+    });
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -58,7 +66,11 @@ const payBountyRateLimiter = rateLimit({
 const claimBountyRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // Max 30 claim attempts per 15 minutes
-  message: 'Too many claim requests, please try again later.',
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many claim requests, please try again later.'
+    });
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
