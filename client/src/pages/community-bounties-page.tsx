@@ -101,6 +101,27 @@ export default function CommunityBountiesPage() {
     };
   };
 
+  // Pay bounty mutation
+  const payBountyMutation = useMutation({
+    mutationFn: async (bountyId: number) => {
+      return await communityBountiesAPI.pay(bountyId);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Payment successful!",
+        description: `Bounty funded. TX: ${data.txHash.slice(0, 10)}...`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["community-bounties"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Payment failed",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create bounty mutation
   const createBountyMutation = useMutation({
     mutationFn: async () => {
@@ -136,8 +157,8 @@ export default function CommunityBountiesPage() {
         amount: "",
         currency: "USDC",
       });
-      // Navigate to payment or show payment modal
-      // TODO: Implement payment flow
+      // Automatically trigger payment
+      payBountyMutation.mutate(data.bounty.id);
     },
     onError: (error: any) => {
       toast({
@@ -609,12 +630,17 @@ export default function CommunityBountiesPage() {
               <Button
                 className="flex-1"
                 onClick={handleCreateBounty}
-                disabled={createBountyMutation.isPending}
+                disabled={createBountyMutation.isPending || payBountyMutation.isPending}
               >
                 {createBountyMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
+                  </>
+                ) : payBountyMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing payment...
                   </>
                 ) : (
                   <>
