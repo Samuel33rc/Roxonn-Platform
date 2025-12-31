@@ -138,6 +138,31 @@ class CommunityBountiesAPI {
       body: JSON.stringify(input),
     });
 
+    // If CSRF failed, refresh token and retry once
+    if (response.status === 403) {
+      const errorData = await response.json();
+      if (errorData.error?.includes('CSRF')) {
+        console.log('[CSRF] Token expired, refreshing and retrying...');
+        const retryHeaders = await csrfService.addTokenToHeaders({
+          'Content-Type': 'application/json',
+        });
+
+        const retryResponse = await fetch(this.baseURL, {
+          method: 'POST',
+          headers: retryHeaders,
+          credentials: 'include',
+          body: JSON.stringify(input),
+        });
+
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.json();
+          throw new Error(retryError.error || 'Failed to create bounty');
+        }
+
+        return retryResponse.json();
+      }
+    }
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to create bounty');
@@ -166,6 +191,30 @@ class CommunityBountiesAPI {
       credentials: 'include',
     });
 
+    // If CSRF failed, refresh token and retry once
+    if (response.status === 403) {
+      const errorData = await response.json();
+      if (errorData.error?.includes('CSRF')) {
+        console.log('[CSRF] Token expired, refreshing and retrying payment...');
+        const retryHeaders = await csrfService.addTokenToHeaders({
+          'Content-Type': 'application/json',
+        });
+
+        const retryResponse = await fetch(`${this.baseURL}/${bountyId}/pay`, {
+          method: 'POST',
+          headers: retryHeaders,
+          credentials: 'include',
+        });
+
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.json();
+          throw new Error(retryError.error || retryError.details || 'Failed to process payment');
+        }
+
+        return retryResponse.json();
+      }
+    }
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || error.details || 'Failed to process payment');
@@ -192,6 +241,31 @@ class CommunityBountiesAPI {
       credentials: 'include',
       body: JSON.stringify({ prNumber, prUrl }),
     });
+
+    // If CSRF failed, refresh token and retry once
+    if (response.status === 403) {
+      const errorData = await response.json();
+      if (errorData.error?.includes('CSRF')) {
+        console.log('[CSRF] Token expired, refreshing and retrying claim...');
+        const retryHeaders = await csrfService.addTokenToHeaders({
+          'Content-Type': 'application/json',
+        });
+
+        const retryResponse = await fetch(`${this.baseURL}/${bountyId}/claim`, {
+          method: 'POST',
+          headers: retryHeaders,
+          credentials: 'include',
+          body: JSON.stringify({ prNumber, prUrl }),
+        });
+
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.json();
+          throw new Error(retryError.error || 'Failed to claim bounty');
+        }
+
+        return retryResponse.json();
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json();
