@@ -9,7 +9,9 @@ interface CsrfResponse {
  */
 class CsrfService {
   private token: string | null = null;
-  
+  private tokenFetchedAt: number | null = null;
+  private readonly TOKEN_LIFETIME = 23 * 60 * 60 * 1000; // 23 hours (less than server session)
+
   /**
    * Fetch a new CSRF token from the server
    */
@@ -23,35 +25,53 @@ class CsrfService {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch CSRF token: ${response.status}`);
       }
-      
+
       const data = await response.json() as CsrfResponse;
       this.token = data.csrfToken;
+      this.tokenFetchedAt = Date.now();
       return this.token;
     } catch (error) {
       console.error('Error fetching CSRF token:', error);
       throw error;
     }
   }
-  
+
   /**
-   * Get the current CSRF token, fetching a new one if necessary
+   * Check if the cached token is still valid
+   */
+  private isTokenExpired(): boolean {
+    if (!this.tokenFetchedAt) return true;
+    return (Date.now() - this.tokenFetchedAt) > this.TOKEN_LIFETIME;
+  }
+
+  /**
+   * Get the current CSRF token, fetching a new one if necessary or expired
    */
   async getToken(): Promise<string> {
-    if (!this.token) {
+    if (!this.token || this.isTokenExpired()) {
       return this.fetchToken();
     }
     return this.token;
   }
   
   /**
-   * Clear the stored CSRF token
+   * Clear the stored CSRF token and timestamp
    */
   clearToken(): void {
     this.token = null;
+    this.tokenFetchedAt = null;
+  }
+
+  /**
+   * Force refresh the CSRF token (useful after CSRF errors)
+   */
+  async refreshToken(): Promise<string> {
+    this.clearToken();
+    return this.fetchToken();
   }
   
   /**
