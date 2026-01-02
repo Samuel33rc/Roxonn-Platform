@@ -7,22 +7,27 @@
  * - Permissionless bounties (works on any public GitHub repo)
  *
  * ENDPOINTS:
- * - POST /api/community-bounties - Create bounty (DB record only)
- * - POST /api/community-bounties/:id/pay - Pay for bounty (blockchain)
- * - POST /api/community-bounties/:id/claim - Claim bounty (via PR)
- * - GET /api/community-bounties - List/filter bounties
- * - GET /api/community-bounties/:id - Get single bounty
- * - GET /api/community-bounties/leaderboard - Top contributors
+ * - POST /api/community-bounties - Create bounty (CLIENT only)
+ * - POST /api/community-bounties/:id/pay - Pay for bounty (CLIENT only - creator)
+ * - POST /api/community-bounties/:id/claim - Claim bounty (DEVELOPER only)
+ * - GET /api/community-bounties - List/filter bounties (public)
+ * - GET /api/community-bounties/:id - Get single bounty (public)
+ * - GET /api/community-bounties/leaderboard - Top contributors (public)
+ *
+ * PROFILE TYPE RESTRICTIONS:
+ * - CLIENT (poolmanager): Can create and fund bounties
+ * - DEVELOPER (contributor): Can claim/submit to bounties
  *
  * SECURITY:
  * - Rate limiting on all endpoints
  * - Authentication required for create/pay/claim
+ * - Profile type (role) enforcement on restricted endpoints
  * - CSRF protection on state-changing operations
  * - Input validation with Zod schemas
  */
 
 import { Router, type Request, Response } from 'express';
-import { requireAuth, csrfProtection } from '../auth';
+import { requireAuth, csrfProtection, requireClient, requireDeveloper, PROFILE_DISPLAY_NAMES } from '../auth';
 import { storage } from '../storage';
 import { blockchain } from '../blockchain';
 import { log } from '../utils';
@@ -113,6 +118,7 @@ const router = Router();
 router.post(
   '/api/community-bounties',
   requireAuth,
+  requireClient, // CLIENT only: Only Clients can create bounties
   csrfProtection,
   createBountyRateLimiter,
   async (req: Request, res: Response) => {
@@ -121,7 +127,7 @@ router.post(
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      log(`Creating community bounty for user ${req.user.id}`, 'community-bounties');
+      log(`Creating community bounty for user ${req.user.id} (role: ${req.user.role})`, 'community-bounties');
 
       // Validate input
       const validatedData = createCommunityBountySchema.parse(req.body);
@@ -211,6 +217,7 @@ router.post(
 router.post(
   '/api/community-bounties/:id/pay',
   requireAuth,
+  requireClient, // CLIENT only: Only Clients can pay for bounties
   csrfProtection,
   payBountyRateLimiter,
   async (req: Request, res: Response) => {
@@ -224,7 +231,7 @@ router.post(
         return res.status(400).json({ error: 'Invalid bounty ID' });
       }
 
-      log(`Processing payment for community bounty ${bountyId} by user ${req.user.id}`, 'community-bounties');
+      log(`Processing payment for community bounty ${bountyId} by user ${req.user.id} (role: ${req.user.role})`, 'community-bounties');
 
       // Fetch bounty
       const bounty = await storage.getCommunityBounty(bountyId);
@@ -343,6 +350,7 @@ router.post(
 router.post(
   '/api/community-bounties/:id/claim',
   requireAuth,
+  requireDeveloper, // DEVELOPER only: Only Developers can claim bounties
   csrfProtection,
   claimBountyRateLimiter,
   async (req: Request, res: Response) => {
@@ -362,7 +370,7 @@ router.post(
         return res.status(400).json({ error: 'PR number is required' });
       }
 
-      log(`Processing claim for community bounty ${bountyId} by user ${req.user.id}, PR #${prNumber}`, 'community-bounties');
+      log(`Processing claim for community bounty ${bountyId} by user ${req.user.id} (role: ${req.user.role}), PR #${prNumber}`, 'community-bounties');
 
       // Fetch bounty
       const bounty = await storage.getCommunityBounty(bountyId);

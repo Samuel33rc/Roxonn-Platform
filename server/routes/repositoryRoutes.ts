@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth, csrfProtection } from '../auth';
+import { requireAuth, csrfProtection, requireClient } from '../auth';
 import { blockchain } from '../blockchain';
 import { config } from '../config';
 import { log } from '../utils';
@@ -299,6 +299,7 @@ router.get('/partners/verify-registration', async (req: Request, res: Response) 
 router.post(
   '/repositories/register',
   requireAuth,
+  requireClient, // CLIENT only: Only Clients can register repositories/create pools
   csrfProtection,
   securityMiddlewares.repoRateLimiter,
   securityMiddlewares.securityMonitor,
@@ -602,10 +603,11 @@ router.get(
   }
 );
 
-// Toggle repository active status (pool manager only)
+// Toggle repository active status (CLIENT/pool manager only)
 router.patch(
   '/repositories/:repoId/active',
   requireAuth,
+  requireClient, // CLIENT only: Only Clients can modify repository settings
   securityMiddlewares.repoRateLimiter,
   securityMiddlewares.securityMonitor,
   async (req: Request, res: Response) => {

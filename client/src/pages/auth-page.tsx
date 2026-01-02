@@ -293,7 +293,7 @@ export default function AuthPage() {
               {!user
                 ? "Connect your GitHub to start earning"
                 : !user.isProfileComplete
-                ? "Choose your role to get started"
+                ? "Choose your profile type to get started"
                 : "Welcome back!"}
             </p>
           </motion.div>
@@ -375,10 +375,10 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                {/* Role Selection */}
+                {/* Profile Type Selection */}
                 <div className="space-y-4">
                   <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-                    Select Your Role
+                    Choose Your Profile Type
                   </h4>
                   <RadioGroup
                     value={role}
@@ -396,12 +396,17 @@ export default function AuthPage() {
                       <RadioGroupItem value="contributor" id="contributor" className="mt-1" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">Contributor</span>
-                          <Badge variant="outline" className="badge-xdc text-xs">Earn XDC</Badge>
+                          <span className="font-semibold">Developer</span>
+                          <Badge variant="outline" className="badge-xdc text-xs">Earn Crypto</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Work on bounties and get paid in crypto when PRs are merged.
+                          Browse bounties, submit solutions, and earn crypto when your PRs are merged.
                         </p>
+                        <ul className="mt-2 text-xs text-muted-foreground space-y-1">
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-cyan-500" /> Claim and work on bounties</li>
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-cyan-500" /> Submit PRs for rewards</li>
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-cyan-500" /> Join project teams</li>
+                        </ul>
                       </div>
                     </Label>
 
@@ -416,12 +421,17 @@ export default function AuthPage() {
                       <RadioGroupItem value="poolmanager" id="poolmanager" className="mt-1" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">Pool Manager</span>
-                          <Badge variant="outline" className="badge-roxn text-xs">Fund Repos</Badge>
+                          <span className="font-semibold">Client</span>
+                          <Badge variant="outline" className="badge-roxn text-xs">Fund Projects</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Fund repositories and reward contributors for their work.
+                          Create bounties, fund repositories, and reward developers for their contributions.
                         </p>
+                        <ul className="mt-2 text-xs text-muted-foreground space-y-1">
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-violet-500" /> Create and fund bounties</li>
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-violet-500" /> Register repositories</li>
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-violet-500" /> Review and approve submissions</li>
+                        </ul>
                       </div>
                     </Label>
                   </RadioGroup>

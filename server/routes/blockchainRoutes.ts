@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth, csrfProtection } from '../auth';
+import { requireAuth, csrfProtection, requireClient, PROFILE_DISPLAY_NAMES } from '../auth';
 import { blockchain } from '../blockchain';
 import { config } from '../config';
 import { log } from '../utils';
@@ -165,7 +165,7 @@ router.get(
  *       403:
  *         description: Forbidden
  */
-router.post('/repository/:repoId/fund', requireAuth, csrfProtection, async (req, res) => {
+router.post('/repository/:repoId/fund', requireAuth, requireClient, csrfProtection, async (req, res) => {
   try {
     // Validate input: repoId from URL param, amountXdc and repositoryFullName from body
     const repoIdString = req.params.repoId; // repoId from GitHub, treat as string for consistency
@@ -193,10 +193,10 @@ router.post('/repository/:repoId/fund', requireAuth, csrfProtection, async (req,
       return res.status(400).json({ error: 'Invalid amount format for XDC' });
     }
 
-    // Check user authentication and role (req.user is now guaranteed to exist)
-    if (req.user.role !== 'poolmanager' || !req.user.githubAccessToken || !req.user.walletReferenceId) {
+    // Additional check: ensure user has GitHub token and wallet (requireClient already verified role)
+    if (!req.user.githubAccessToken || !req.user.walletReferenceId) {
       return res.status(403).json({
-        error: 'Forbidden: User must be an authenticated Pool Manager with a connected wallet and GitHub token.',
+        error: 'Forbidden: User must have a connected wallet and GitHub token.',
       });
     }
 
@@ -467,7 +467,7 @@ router.get('/roxn-allowance', requireAuth, async (req: Request, res: Response) =
  *       403:
  *         description: Forbidden (Pool Manager only)
  */
-router.post('/fund-roxn/:repoId', requireAuth, csrfProtection, async (req: Request, res: Response) => {
+router.post('/fund-roxn/:repoId', requireAuth, requireClient, csrfProtection, async (req: Request, res: Response) => {
   try {
     const { repoId } = req.params;
     const validationResult = fundRoxnRepoSchema.safeParse(req.body);
@@ -477,9 +477,7 @@ router.post('/fund-roxn/:repoId', requireAuth, csrfProtection, async (req: Reque
     const { roxnAmount } = validationResult.data;
 
     if (!req.user) return res.status(401).json({ error: 'User not authenticated' });
-    if (req.user.role !== 'poolmanager') {
-      return res.status(403).json({ error: 'Only pool managers can fund with ROXN' });
-    }
+    // Role check now handled by requireClient middleware
 
     log(`User ${req.user.id} attempting to fund repository ${repoId} with ${roxnAmount} ROXN (Unified System)`, 'routes-unified');
     const txResponse = await blockchain.addROXNFundToRepository(
@@ -538,7 +536,7 @@ router.post('/fund-roxn/:repoId', requireAuth, csrfProtection, async (req: Reque
  *       403:
  *         description: Forbidden (Pool Manager only)
  */
-router.post('/fund-usdc/:repoId', requireAuth, csrfProtection, async (req: Request, res: Response) => {
+router.post('/fund-usdc/:repoId', requireAuth, requireClient, csrfProtection, async (req: Request, res: Response) => {
   try {
     const { repoId } = req.params;
     const validationResult = fundUsdcRepoSchema.safeParse(req.body);
@@ -548,9 +546,7 @@ router.post('/fund-usdc/:repoId', requireAuth, csrfProtection, async (req: Reque
     const { usdcAmount } = validationResult.data;
 
     if (!req.user) return res.status(401).json({ error: 'User not authenticated' });
-    if (req.user.role !== 'poolmanager') {
-      return res.status(403).json({ error: 'Only pool managers can fund with USDC' });
-    }
+    // Role check now handled by requireClient middleware
 
     log(`User ${req.user.id} attempting to fund repository ${repoId} with ${usdcAmount} USDC (Unified System)`, 'routes-unified');
     const txResponse = await blockchain.addUSDCFundToRepository(parseInt(repoId), usdcAmount, req.user.id);
@@ -609,7 +605,7 @@ router.post('/fund-usdc/:repoId', requireAuth, csrfProtection, async (req: Reque
  *       403:
  *         description: Forbidden
  */
-router.post('/allocate-bounty/:repoId/:issueId', requireAuth, csrfProtection, async (req: Request, res: Response) => {
+router.post('/allocate-bounty/:repoId/:issueId', requireAuth, requireClient, csrfProtection, async (req: Request, res: Response) => {
   try {
     const { repoId, issueId } = req.params;
     const validationResult = allocateUnifiedBountySchema.safeParse(req.body);
@@ -620,9 +616,7 @@ router.post('/allocate-bounty/:repoId/:issueId', requireAuth, csrfProtection, as
     const { bountyAmount, currencyType, githubRepoFullName, issueTitle, issueUrl } = validationResult.data;
 
     if (!req.user) return res.status(401).json({ error: 'User not authenticated' });
-    if (req.user.role !== 'poolmanager') {
-      return res.status(403).json({ error: 'Only pool managers can allocate bounties' });
-    }
+    // Role check now handled by requireClient middleware
 
     log(
       `User ${req.user.id} attempting to allocate ${bountyAmount} ${currencyType} to issue ${issueId} in repo ${repoId} (Unified System)`,
@@ -707,7 +701,7 @@ router.post('/allocate-bounty/:repoId/:issueId', requireAuth, csrfProtection, as
  *       403:
  *         description: Forbidden
  */
-router.post('/distribute-bounty/:repoId/:issueId', requireAuth, csrfProtection, async (req: Request, res: Response) => {
+router.post('/distribute-bounty/:repoId/:issueId', requireAuth, requireClient, csrfProtection, async (req: Request, res: Response) => {
   try {
     const { repoId, issueId } = req.params;
     const { contributorAddress } = req.body;
@@ -716,9 +710,7 @@ router.post('/distribute-bounty/:repoId/:issueId', requireAuth, csrfProtection, 
       return res.status(400).json({ error: 'Missing or invalid contributorAddress' });
     }
     if (!req.user) return res.status(401).json({ error: 'User not authenticated' });
-    if (req.user.role !== 'poolmanager') {
-      return res.status(403).json({ error: 'Only pool managers can distribute bounties' });
-    }
+    // Role check now handled by requireClient middleware
 
     log(
       `User ${req.user.id} attempting to distribute bounty for issue ${issueId} in repo ${repoId} to ${contributorAddress} (Unified System)`,
@@ -855,13 +847,14 @@ router.get(
  *       403:
  *         description: Forbidden (Pool Manager only)
  */
-router.post('/repository/:repoId/initialize', requireAuth, csrfProtection, async (req: Request, res: Response) => {
+router.post('/repository/:repoId/initialize', requireAuth, requireClient, csrfProtection, async (req: Request, res: Response) => {
   try {
     const { repoId } = req.params;
 
-    if (!req.user || req.user.role !== 'poolmanager') {
-      return res.status(403).json({ error: 'Only pool managers can initialize repositories' });
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
+    // Role check now handled by requireClient middleware
 
     const userAddress = req.user.xdcWalletAddress;
     if (!userAddress) {
