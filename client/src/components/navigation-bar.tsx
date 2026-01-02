@@ -452,7 +452,7 @@ export function NavigationBar() {
                   {/* Help Section */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Help & Guides</p>
-                    {user?.role === 'contributor' && (
+                    {isDeveloper(user) && (
                       <Button
                         variant="ghost"
                         className="w-full justify-start h-12 hover:bg-cyan-500/10 hover:text-cyan-400"
@@ -462,11 +462,11 @@ export function NavigationBar() {
                         }}
                       >
                         <BookOpen className="mr-2 h-4 w-4" />
-                        Contribution Demo
+                        Developer Guide
                       </Button>
                     )}
 
-                    {user?.role === 'poolmanager' && (
+                    {isClient(user) && (
                       <>
                         <Button
                           variant="ghost"
@@ -477,7 +477,7 @@ export function NavigationBar() {
                           }}
                         >
                           <BookOpen className="mr-2 h-4 w-4" />
-                          Pool Manager Guide
+                          Client Guide
                         </Button>
                         <Button
                           variant="ghost"
