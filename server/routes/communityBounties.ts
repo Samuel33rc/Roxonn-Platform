@@ -27,7 +27,7 @@
  */
 
 import { Router, type Request, Response } from 'express';
-import { requireAuth, csrfProtection, requireClient, requireDeveloper, PROFILE_DISPLAY_NAMES } from '../auth';
+import { requireAuth, csrfProtection, requireClient, requireDeveloper } from '../auth';
 import { storage } from '../storage';
 import { blockchain } from '../blockchain';
 import { log } from '../utils';

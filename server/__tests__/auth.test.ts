@@ -31,6 +31,23 @@ vi.mock('../config', () => ({
   },
 }));
 
+// Mock log function to prevent console output during tests
+vi.mock('../utils', () => ({
+  log: vi.fn(),
+}));
+
+// Mock drizzle-orm eq function
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn((field, value) => ({ field, value })),
+}));
+
+// Mock users schema
+vi.mock('../../shared/schema', () => ({
+  users: {
+    id: 'id',
+  },
+}));
+
 describe('Auth Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;

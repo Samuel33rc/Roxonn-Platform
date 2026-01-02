@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth, csrfProtection, requireClient, PROFILE_DISPLAY_NAMES } from '../auth';
+import { requireAuth, csrfProtection, requireClient } from '../auth';
 import { blockchain } from '../blockchain';
 import { config } from '../config';
 import { log } from '../utils';

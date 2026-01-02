@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth, getProfileDisplayName, isDeveloper, isClient } from "@/hooks/use-auth";
+import { useAuth, isDeveloper, isClient } from "@/hooks/use-auth";
 import { useWallet } from "@/hooks/use-wallet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
