@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { requireAuth, requireVSCodeAuth, csrfProtection } from '../auth';
+import {
+  requireAuth,
+  requireVSCodeAuth,
+  csrfProtection,
+  requireRole,
+  requireDeveloper,
+  requireClient,
+  PROFILE_TYPES,
+  PROFILE_DISPLAY_NAMES
+} from '../auth';
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db';
@@ -19,6 +28,23 @@ vi.mock('../db', () => ({
 vi.mock('../config', () => ({
   config: {
     sessionSecret: 'test-secret-key',
+  },
+}));
+
+// Mock log function to prevent console output during tests
+vi.mock('../utils', () => ({
+  log: vi.fn(),
+}));
+
+// Mock drizzle-orm eq function
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn((field, value) => ({ field, value })),
+}));
+
+// Mock users schema
+vi.mock('../../shared/schema', () => ({
+  users: {
+    id: 'id',
   },
 }));
 
@@ -220,6 +246,260 @@ describe('Auth Middleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
   });
+
+  describe('PROFILE_TYPES and PROFILE_DISPLAY_NAMES', () => {
+    it('should have correct profile type constants', () => {
+      expect(PROFILE_TYPES.DEVELOPER).toBe('contributor');
+      expect(PROFILE_TYPES.CLIENT).toBe('poolmanager');
+    });
+
+    it('should have correct display names', () => {
+      expect(PROFILE_DISPLAY_NAMES.contributor).toBe('Developer');
+      expect(PROFILE_DISPLAY_NAMES.poolmanager).toBe('Client');
+    });
+  });
+
+  describe('requireRole', () => {
+    it('should reject unauthenticated requests', async () => {
+      mockRequest.user = undefined;
+
+      const middleware = requireRole(['contributor']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should reject users without role assigned', async () => {
+      mockRequest.user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: null,
+        githubAccessToken: 'token123',
+      } as any;
+
+      const middleware = requireRole(['contributor']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Profile registration incomplete. Please complete your profile setup first.',
+        code: 'PROFILE_INCOMPLETE'
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should allow users with matching role (contributor/Developer)', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      const middleware = requireRole(['contributor']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should allow users with matching role (poolmanager/Client)', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'poolmanager',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      const middleware = requireRole(['poolmanager']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should reject users with wrong role', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor', // Developer trying to access Client endpoint
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+      mockRequest.method = 'POST';
+      mockRequest.path = '/api/community-bounties';
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      const middleware = requireRole(['poolmanager']); // Client only
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'This action is only available for Client accounts. Your account type is Developer.',
+        code: 'ROLE_NOT_ALLOWED',
+        userRole: 'contributor',
+        allowedRoles: ['poolmanager']
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should allow when user has any of multiple allowed roles', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      const middleware = requireRole(['contributor', 'poolmanager']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should verify role from database (not trust session)', async () => {
+      // Session says poolmanager, but database says contributor
+      const sessionUser = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'poolmanager', // Tampered session data
+        githubAccessToken: 'token123',
+      };
+      const dbUser = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor', // Real role in database
+      };
+      mockRequest.user = sessionUser as any;
+      mockRequest.method = 'POST';
+      mockRequest.path = '/api/community-bounties';
+
+      (db.query.users.findFirst as any).mockResolvedValue(dbUser);
+
+      const middleware = requireRole(['poolmanager']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      // Should be rejected based on DATABASE role, not session role
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should reject when user not found in database', async () => {
+      mockRequest.user = {
+        id: 999,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor',
+        githubAccessToken: 'token123',
+      } as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(null);
+
+      const middleware = requireRole(['contributor']);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requireDeveloper', () => {
+    it('should allow contributor role', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      await requireDeveloper(mockRequest as Request, mockResponse as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should reject poolmanager role', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'poolmanager',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+      mockRequest.method = 'POST';
+      mockRequest.path = '/api/community-bounties/1/claim';
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      await requireDeveloper(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requireClient', () => {
+    it('should allow poolmanager role', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'poolmanager',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      await requireClient(mockRequest as Request, mockResponse as Response, mockNext);
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should reject contributor role', async () => {
+      const user = {
+        id: 1,
+        githubId: '123',
+        username: 'testuser',
+        role: 'contributor',
+        githubAccessToken: 'token123',
+      };
+      mockRequest.user = user as any;
+      mockRequest.method = 'POST';
+      mockRequest.path = '/api/community-bounties';
+
+      (db.query.users.findFirst as any).mockResolvedValue(user);
+
+      await requireClient(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
 });
-
-

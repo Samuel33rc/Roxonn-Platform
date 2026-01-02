@@ -4,21 +4,25 @@
  * WHY THIS PAGE:
  * - Browse all active community bounties
  * - Filter by status, currency, repository
- * - Create new bounties (any authenticated user)
- * - Claim bounties by submitting PR
+ * - Create new bounties (CLIENT profile only)
+ * - Claim bounties by submitting PR (DEVELOPER profile only)
+ *
+ * PROFILE TYPE RESTRICTIONS:
+ * - CLIENT: Can create and fund bounties (create button visible)
+ * - DEVELOPER: Can claim bounties (claim button visible on funded bounties)
  *
  * FEATURES:
  * - Search and filter bounties
  * - View bounty details
- * - Create bounty modal
- * - Payment flow modal
- * - Claim bounty modal
+ * - Create bounty modal (CLIENT only)
+ * - Payment flow modal (CLIENT only)
+ * - Claim bounty modal (DEVELOPER only)
  */
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, isDeveloper, isClient } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -214,11 +218,19 @@ export default function CommunityBountiesPage() {
             Permissionless bounties on any public GitHub repository
           </p>
         </div>
-        {user && (
+        {/* Only Clients can create bounties */}
+        {isClient(user) && (
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Create Bounty
           </Button>
+        )}
+        {/* Show message to Developers */}
+        {isDeveloper(user) && (
+          <Badge variant="outline" className="py-2 px-4">
+            <Users className="mr-2 h-4 w-4" />
+            Browse & Claim Bounties
+          </Badge>
         )}
       </div>
 
@@ -323,11 +335,14 @@ export default function CommunityBountiesPage() {
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No bounties found</h3>
             <p className="text-muted-foreground text-center mb-4">
-              {searchQuery || statusFilter || currencyFilter
+              {searchQuery || statusFilter !== "all" || currencyFilter !== "all"
                 ? "Try adjusting your filters"
-                : "Be the first to create a community bounty!"}
+                : isClient(user)
+                  ? "Be the first to create a community bounty!"
+                  : "No bounties available yet. Check back soon!"}
             </p>
-            {user && (
+            {/* Only Clients can create bounties */}
+            {isClient(user) && (
               <Button onClick={() => setShowCreateDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Bounty

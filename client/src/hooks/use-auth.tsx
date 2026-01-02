@@ -2,6 +2,43 @@ import { createContext, useContext, useEffect, useState, useRef } from "react";
 import api from "../lib/api";
 import csrfService from "../lib/csrf";
 
+/**
+ * Profile type constants
+ * Internal values: "contributor" (Developer), "poolmanager" (Client)
+ * Display names: "Developer", "Client"
+ */
+export const PROFILE_TYPES = {
+  DEVELOPER: 'contributor',
+  CLIENT: 'poolmanager',
+} as const;
+
+export const PROFILE_DISPLAY_NAMES: Record<string, string> = {
+  contributor: 'Developer',
+  poolmanager: 'Client',
+};
+
+/**
+ * Get display name for a profile type
+ */
+export function getProfileDisplayName(role: string | null | undefined): string {
+  if (!role) return 'Unknown';
+  return PROFILE_DISPLAY_NAMES[role] || role;
+}
+
+/**
+ * Check if user is a Developer (contributor)
+ */
+export function isDeveloper(user: User | null): boolean {
+  return user?.role === PROFILE_TYPES.DEVELOPER;
+}
+
+/**
+ * Check if user is a Client (poolmanager)
+ */
+export function isClient(user: User | null): boolean {
+  return user?.role === PROFILE_TYPES.CLIENT;
+}
+
 interface User {
   id: number;
   githubId: string;

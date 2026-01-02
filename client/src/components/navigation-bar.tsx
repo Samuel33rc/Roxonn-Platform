@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, isDeveloper, isClient } from "@/hooks/use-auth";
 import { useWallet } from "@/hooks/use-wallet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,8 +48,8 @@ export function NavigationBar() {
     enabled: !!user,
   });
 
-  // Determine the correct home link based on role
-  const homeLink = user?.role === 'poolmanager' ? '/my-repos' : '/repos';
+  // Determine the correct home link based on profile type (Client vs Developer)
+  const homeLink = isClient(user) ? '/my-repos' : '/repos';
 
   // Format XDC balance with appropriate precision
   const formattedXdcBalance = walletInfo?.balance
@@ -157,19 +157,19 @@ export function NavigationBar() {
             <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-xl border-border/50">
               <DropdownMenuLabel className="text-muted-foreground">Help & Guides</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-border/50" />
-              {/* Show different demos based on user role */}
-              {user?.role === 'contributor' && (
+              {/* Show different demos based on profile type (Developer vs Client) */}
+              {isDeveloper(user) && (
                 <DropdownMenuItem onClick={() => showContributionDemo()} className="cursor-pointer hover:bg-cyan-500/10 hover:text-cyan-400 focus:bg-cyan-500/10 focus:text-cyan-400">
                   <BookOpen className="mr-2 h-4 w-4" />
-                  Contribution Demo
+                  Developer Guide
                 </DropdownMenuItem>
               )}
 
-              {user?.role === 'poolmanager' && (
+              {isClient(user) && (
                 <>
                   <DropdownMenuItem onClick={() => showPoolManagerGuide()} className="cursor-pointer hover:bg-cyan-500/10 hover:text-cyan-400 focus:bg-cyan-500/10 focus:text-cyan-400">
                     <BookOpen className="mr-2 h-4 w-4" />
-                    Pool Manager Guide
+                    Client Guide
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => showFundingDemo()} className="cursor-pointer hover:bg-cyan-500/10 hover:text-cyan-400 focus:bg-cyan-500/10 focus:text-cyan-400">
                     <BookOpen className="mr-2 h-4 w-4" />
@@ -452,7 +452,7 @@ export function NavigationBar() {
                   {/* Help Section */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Help & Guides</p>
-                    {user?.role === 'contributor' && (
+                    {isDeveloper(user) && (
                       <Button
                         variant="ghost"
                         className="w-full justify-start h-12 hover:bg-cyan-500/10 hover:text-cyan-400"
@@ -462,11 +462,11 @@ export function NavigationBar() {
                         }}
                       >
                         <BookOpen className="mr-2 h-4 w-4" />
-                        Contribution Demo
+                        Developer Guide
                       </Button>
                     )}
 
-                    {user?.role === 'poolmanager' && (
+                    {isClient(user) && (
                       <>
                         <Button
                           variant="ghost"
@@ -477,7 +477,7 @@ export function NavigationBar() {
                           }}
                         >
                           <BookOpen className="mr-2 h-4 w-4" />
-                          Pool Manager Guide
+                          Client Guide
                         </Button>
                         <Button
                           variant="ghost"

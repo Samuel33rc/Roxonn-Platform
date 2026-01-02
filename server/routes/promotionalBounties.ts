@@ -1,6 +1,6 @@
 import { Router, type Request, Response } from 'express';
 import { db, users } from '../db';
-import { requireAuth, csrfProtection } from '../auth';
+import { requireAuth, csrfProtection, requireClient, requireDeveloper } from '../auth';
 import { eq, and, desc, sql, inArray, or } from 'drizzle-orm';
 import { ZodError } from 'zod';
 import {
@@ -255,8 +255,8 @@ router.get('/bounties/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Create bounty - pool managers only
-router.post('/bounties', requireAuth, csrfProtection, createBountyRateLimiter, async (req: Request, res: Response) => {
+// Create bounty - CLIENT (pool managers) only
+router.post('/bounties', requireAuth, requireClient, csrfProtection, createBountyRateLimiter, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     
@@ -318,8 +318,8 @@ router.post('/bounties', requireAuth, csrfProtection, createBountyRateLimiter, a
 
 
 
-// Update bounty status
-router.patch('/bounties/:id/status', requireAuth, csrfProtection, updateBountyRateLimiter, async (req: Request, res: Response) => {
+// Update bounty status - CLIENT (pool managers) only
+router.patch('/bounties/:id/status', requireAuth, requireClient, csrfProtection, updateBountyRateLimiter, async (req: Request, res: Response) => {
   try {
     const bountyId = parseInt(req.params.id, 10);
     if (isNaN(bountyId)) {
@@ -506,8 +506,8 @@ router.get('/submissions/:id', requireAuth, async (req: Request, res: Response) 
   }
 });
 
-// Create submission
-router.post('/submissions', requireAuth, csrfProtection, submissionRateLimiter, async (req: Request, res: Response) => {
+// Create submission - DEVELOPER (contributors) only
+router.post('/submissions', requireAuth, requireDeveloper, csrfProtection, submissionRateLimiter, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     
@@ -587,8 +587,8 @@ router.post('/submissions', requireAuth, csrfProtection, submissionRateLimiter, 
   }
 });
 
-// Review submission - pool managers only
-router.patch('/submissions/:id/review', requireAuth, csrfProtection, reviewRateLimiter, async (req: Request, res: Response) => {
+// Review submission - CLIENT (pool managers) only
+router.patch('/submissions/:id/review', requireAuth, requireClient, csrfProtection, reviewRateLimiter, async (req: Request, res: Response) => {
   try {
     const submissionId = parseInt(req.params.id, 10);
     if (isNaN(submissionId)) {

@@ -76,6 +76,106 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
  * 
  * This version directly verifies the JWT token instead of relying on Passport strategy.
  */
+/**
+ * Profile type constants for display purposes
+ * Internal: "contributor" = Developer, "poolmanager" = Client
+ */
+export const PROFILE_TYPES = {
+  DEVELOPER: 'contributor',
+  CLIENT: 'poolmanager',
+} as const;
+
+export const PROFILE_DISPLAY_NAMES = {
+  contributor: 'Developer',
+  poolmanager: 'Client',
+} as const;
+
+/**
+ * Middleware factory to require a specific profile type (role)
+ *
+ * SECURITY: Always verifies role from database, never trusts client-side data
+ *
+ * @param allowedRoles - Array of allowed roles ('contributor' for Developer, 'poolmanager' for Client)
+ * @returns Express middleware that checks user's role
+ *
+ * Usage:
+ *   - requireRole(['contributor']) - Developer only endpoints (submit bounties, claim)
+ *   - requireRole(['poolmanager']) - Client only endpoints (create bounties, fund pools)
+ *   - requireRole(['contributor', 'poolmanager']) - Both roles allowed
+ */
+export const requireRole = (allowedRoles: Array<'contributor' | 'poolmanager'>) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    // Must be authenticated first
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
+    // User must have completed profile registration (role assigned)
+    if (!req.user.role) {
+      return res.status(403).json({
+        error: 'Profile registration incomplete. Please complete your profile setup first.',
+        code: 'PROFILE_INCOMPLETE'
+      });
+    }
+
+    // SECURITY: Verify role from database, don't trust the session/JWT alone
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, req.user.id),
+    });
+
+    if (!dbUser) {
+      log(`requireRole: User ${req.user.id} not found in database`, 'auth-ERROR');
+      return res.status(401).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    if (!dbUser.role) {
+      log(`requireRole: User ${req.user.id} has no role assigned`, 'auth-ERROR');
+      return res.status(403).json({
+        error: 'Profile registration incomplete. Please complete your profile setup first.',
+        code: 'PROFILE_INCOMPLETE'
+      });
+    }
+
+    // Check if user's role is in the allowed roles
+    if (!allowedRoles.includes(dbUser.role as 'contributor' | 'poolmanager')) {
+      const userDisplayRole = PROFILE_DISPLAY_NAMES[dbUser.role as keyof typeof PROFILE_DISPLAY_NAMES] || dbUser.role;
+      const allowedDisplayRoles = allowedRoles.map(r => PROFILE_DISPLAY_NAMES[r]).join(' or ');
+
+      log(`requireRole: User ${req.user.id} with role '${dbUser.role}' attempted to access ${allowedRoles.join('/')} only endpoint: ${req.method} ${req.path}`, 'auth-SECURITY');
+
+      return res.status(403).json({
+        error: `This action is only available for ${allowedDisplayRoles} accounts. Your account type is ${userDisplayRole}.`,
+        code: 'ROLE_NOT_ALLOWED',
+        userRole: dbUser.role,
+        allowedRoles: allowedRoles
+      });
+    }
+
+    // Update req.user.role to match database (in case session is stale)
+    req.user.role = dbUser.role as 'contributor' | 'poolmanager';
+
+    next();
+  };
+};
+
+/**
+ * Convenience middleware: Require Developer (contributor) role
+ * Use for: Claiming bounties, submitting to bounties, joining teams
+ */
+export const requireDeveloper = requireRole([PROFILE_TYPES.DEVELOPER]);
+
+/**
+ * Convenience middleware: Require Client (poolmanager) role
+ * Use for: Creating bounties, funding pools, creating promotional bounties
+ */
+export const requireClient = requireRole([PROFILE_TYPES.CLIENT]);
+
 export const requireVSCodeAuth = async (req: Request, res: Response, next: NextFunction) => {
   // First check if we already have a user from passport
   if (req.user) {
