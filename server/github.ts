@@ -1175,6 +1175,13 @@ export async function handleIssueClosed(payload: WebhookPayload, installationId:
   }
   log(`Repository ${repoFullName} is registered. Proceeding.`, 'webhook-issue');
 
+  // 2.5. CRITICAL: Check Payout Idempotency EARLY (before any expensive operations)
+  const existingPayout = await storage.getPayoutByRepoAndIssue(String(repoId), issueNumber);
+  if (existingPayout) {
+    log(`✅ Payout already processed for repo ${repoId} issue #${issueNumber}. TX: ${existingPayout.transactionHash}. Skipping duplicate.`, 'webhook-issue');
+    return;
+  }
+
   // 3. Check Bounty on Blockchain
   let issueBounty: IssueBountyDetails | null = null;
   let amountStr: string | null = null;
@@ -1215,16 +1222,38 @@ export async function handleIssueClosed(payload: WebhookPayload, installationId:
     return; // Don't proceed if we can't check the bounty
   }
 
-  // 4. Find Closing Merged PR via Timeline API
+  // 4. Find Closing Contributor
   let closingPRAuthor: string | null = null;
-  try {
-    // --- Generate Installation Token --- 
-    const installationToken = await getInstallationAccessToken(installationId);
-    if (!installationToken) {
-      log(`Webhook Error: Could not get installation token for installId ${installationId}. Cannot fetch timeline.`, 'webhook-issue');
-      return; // Cannot proceed without token
+  let closingPRNumber: number | null = null;
+
+  // CRITICAL FIX: Use issue.closed_by from webhook payload (most reliable)
+  if (payload.issue?.closed_by?.login) {
+    const closedByUser = payload.issue.closed_by.login;
+
+    // Skip bot accounts
+    if (!closedByUser.endsWith('[bot]')) {
+      closingPRAuthor = closedByUser;
+      log(`✅ Using issue.closed_by from webhook payload: ${closingPRAuthor}`, 'webhook-issue');
+
+      // Try to get PR number from issue body or timeline (optional enhancement)
+      // For now, we have the correct contributor
+    } else {
+      log(`⚠️ issue.closed_by is a bot (${closedByUser}), will check timeline instead`, 'webhook-issue');
     }
-    const installationApiHeaders = getGitHubApiHeaders(installationToken);
+  } else {
+    log(`⚠️ No issue.closed_by in webhook payload, will search timeline`, 'webhook-issue');
+  }
+
+  // FALLBACK: If no closed_by or it was a bot, search timeline
+  if (!closingPRAuthor) {
+    try {
+      // --- Generate Installation Token ---
+      const installationToken = await getInstallationAccessToken(installationId);
+      if (!installationToken) {
+        log(`Webhook Error: Could not get installation token for installId ${installationId}. Cannot fetch timeline.`, 'webhook-issue');
+        return; // Cannot proceed without token
+      }
+      const installationApiHeaders = getGitHubApiHeaders(installationToken);
     // --- Use Installation Token for API Call (using validated webhook owner/repo) ---
     const timelineUrl = buildSafeGitHubUrl('/repos/{owner}/{repo}/issues/{issueNumber}/timeline', {
       owner: webhookOwner,
@@ -1262,95 +1291,102 @@ export async function handleIssueClosed(payload: WebhookPayload, installationId:
       }
     }
 
-    log(`Timeline received total ${timelineEvents.length} events. Iterating backwards...`, 'webhook-issue');
-    for (let i = timelineEvents.length - 1; i >= 0; i--) {
-      const event = timelineEvents[i];
-      log(`[Timeline Event ${i}] ID: ${event.id}, Event: ${event.event}, Actor: ${event.actor?.login}, Commit: ${event.commit_id || 'N/A'}, Source Type: ${event.source?.type || 'N/A'}, Source Issue State: ${event.source?.issue?.state || 'N/A'}`, 'webhook-issue'); // Log more source details
+      log(`Timeline received total ${timelineEvents.length} events. Searching for MOST RECENT closed event...`, 'webhook-issue');
 
-      // Check if this is a cross-reference event triggered by the contributor's PR
-      if (event.event === 'cross-referenced' && event.actor?.login && event.source?.type === 'issue') {
-        log(`[Timeline Event ${i}] Found potential cross-reference by Actor ${event.actor.login}. Checking source...`, 'webhook-issue');
-        const sourceIssue = event.source.issue; // This object represents the PR
-        log(`[Timeline Event ${i}] Source Issue: #${sourceIssue?.number}, state=${sourceIssue?.state}, user=${sourceIssue?.user?.login}`, 'webhook-issue');
+      // NEW APPROACH: Find the MOST RECENT 'closed' event to get the actual closing PR
+      let closedEvent = null;
+      for (let i = timelineEvents.length - 1; i >= 0; i--) {
+        const event = timelineEvents[i];
+        if (event.event === 'closed' && event.commit_id) {
+          closedEvent = event;
+          log(`[Timeline] Found most recent 'closed' event at index ${i}, commit: ${event.commit_id}, actor: ${event.actor?.login}`, 'webhook-issue');
+          break;
+        }
+      }
 
-        // Verify the source PR is closed and has a merged indicator
-        // GitHub API might represent the merged state in different ways, check common patterns:
-        // 1. sourceIssue.state === 'closed'
-        // 2. sourceIssue.pull_request object exists and sourceIssue.pull_request.merged === true
-        // 3. sourceIssue.state_reason === 'completed' (less reliable for PRs)
-        const mergedAt = sourceIssue?.pull_request?.merged_at;
-        const isMerged = sourceIssue?.state === 'closed' && mergedAt != null;
+      if (closedEvent) {
+        // The actor who performed the close action
+        const closeActor = closedEvent.actor?.login;
 
-        if (isMerged) {
-          // Use PR author from source, not event actor (which could be a bot commenting)
-          const prAuthor = sourceIssue?.user?.login;
-
-          // Skip bot accounts (they end with [bot])
-          if (!prAuthor || prAuthor.endsWith('[bot]')) {
-            log(`[Timeline Event ${i}] Skipping bot or missing PR author: ${prAuthor}`, 'webhook-issue');
-            continue;
-          }
-
-          closingPRAuthor = prAuthor;
-          log(`Found contributor '${closingPRAuthor}' (PR author) via merged cross-referenced PR event.`, 'webhook-issue');
-          break; // Stop searching, we found the contributor
+        // Skip bot accounts
+        if (closeActor && !closeActor.endsWith('[bot]')) {
+          closingPRAuthor = closeActor;
+          log(`✅ Found contributor via 'closed' event: ${closingPRAuthor}`, 'webhook-issue');
         } else {
-          log(`[Timeline Event ${i}] Cross-referenced source PR not marked as merged. State: ${sourceIssue?.state}, Merged At: ${sourceIssue?.pull_request?.merged_at}`, 'webhook-issue'); // Log merged_at
+          log(`⚠️ 'closed' event actor is bot or missing: ${closeActor}`, 'webhook-issue');
         }
       }
-      // Keep the old 'closed' event check as a fallback, though less likely to work based on logs
-      else if (event.event === 'closed' && event.source?.issue?.pull_request?.merged === true) {
-        const fallbackAuthor = event.source.issue.user?.login;
 
-        // Skip bot accounts - consistent with main logic
-        if (!fallbackAuthor || fallbackAuthor.endsWith('[bot]')) {
-          log(`[Timeline Event ${i}] Skipping bot or missing author in fallback: ${fallbackAuthor}`, 'webhook-issue');
-          continue;
+      // FALLBACK: Search cross-referenced PRs (OLD BUGGY METHOD - only as last resort)
+      if (!closingPRAuthor) {
+        log(`⚠️ Falling back to cross-reference search (less reliable)...`, 'webhook-issue');
+
+        for (let i = timelineEvents.length - 1; i >= 0; i--) {
+          const event = timelineEvents[i];
+
+          // Check if this is a cross-reference event triggered by the contributor's PR
+          if (event.event === 'cross-referenced' && event.actor?.login && event.source?.type === 'issue') {
+            const sourceIssue = event.source.issue; // This object represents the PR
+            const prNumber = sourceIssue?.number;
+            const mergedAt = sourceIssue?.pull_request?.merged_at;
+            const isMerged = sourceIssue?.state === 'closed' && mergedAt != null;
+
+            log(`[Timeline Event ${i}] Cross-ref PR #${prNumber}, merged=${isMerged}, author=${sourceIssue?.user?.login}`, 'webhook-issue');
+
+            if (isMerged) {
+              // Use PR author from source, not event actor (which could be a bot commenting)
+              const prAuthor = sourceIssue?.user?.login;
+
+              // Skip bot accounts (they end with [bot])
+              if (!prAuthor || prAuthor.endsWith('[bot]')) {
+                log(`[Timeline Event ${i}] Skipping bot or missing PR author: ${prAuthor}`, 'webhook-issue');
+                continue;
+              }
+
+              closingPRAuthor = prAuthor;
+              closingPRNumber = prNumber;
+              log(`⚠️ Found contributor '${closingPRAuthor}' via PR #${prNumber} (cross-reference fallback - may be incorrect!)`, 'webhook-issue');
+              break; // Stop searching
+            }
+          }
         }
-
-        closingPRAuthor = fallbackAuthor;
-        log(`Found contributor '${closingPRAuthor}' via direct closed event source (Fallback).`, 'webhook-issue');
-        break;
       }
-    }
 
-    if (!closingPRAuthor) {
-      log(`Could not find a merged PR closing event in timeline for issue #${issueNumber}. Cannot determine contributor.`, 'webhook-issue');
+      if (!closingPRAuthor) {
+        log(`❌ Could not find contributor in timeline for issue #${issueNumber}. Cannot determine who to pay.`, 'webhook-issue');
+        return;
+      }
+
+    } catch (timelineError: any) {
+      log(`Error fetching timeline for issue #${issueNumber}: ${timelineError.message}`, 'webhook-issue');
       return;
     }
-
-  } catch (timelineError: any) {
-    log(`Error fetching timeline for issue #${issueNumber}: ${timelineError.message}`, 'webhook-issue');
-    return;
   }
 
   // 5. Get Contributor Details from DB
-  log(`Looking up contributor: ${closingPRAuthor}`, 'webhook-issue');
+  log(`🔍 Looking up contributor: ${closingPRAuthor}${closingPRNumber ? ` (PR #${closingPRNumber})` : ''}`, 'webhook-issue');
   const contributor = await storage.getUserByGithubUsername(closingPRAuthor);
   if (!contributor || !contributor.xdcWalletAddress) {
-    log(`Contributor ${closingPRAuthor} (PR author) not registered or has no wallet. Skipping distribution for issue #${issueNumber}.`, 'webhook-issue');
+    log(`❌ Contributor ${closingPRAuthor} not registered or has no wallet. Skipping distribution for issue #${issueNumber}.`, 'webhook-issue');
     return;
   }
-  log(`Found contributor wallet: ${contributor.xdcWalletAddress}`, 'webhook-issue');
+  log(`✅ Found contributor wallet: ${contributor.xdcWalletAddress}`, 'webhook-issue');
 
   // 6. Get Pool Manager for Distribution Authorization
   const poolManager = await storage.getRepositoryPoolManager(repoId);
   if (!poolManager) {
-    log(`No pool manager found for repository ${repoId}. Cannot distribute reward for issue #${issueNumber}.`, 'webhook-issue');
+    log(`❌ No pool manager found for repository ${repoId}. Cannot distribute reward for issue #${issueNumber}.`, 'webhook-issue');
     return;
   }
-  log(`Found pool manager: ${poolManager.id} (${poolManager.username})`, 'webhook-issue');
+  log(`✅ Found pool manager: ${poolManager.id} (${poolManager.username})`, 'webhook-issue');
 
-  // 7. CRITICAL-2 FIX: Check Payout Idempotency
-  const existingPayout = await storage.getPayoutByRepoAndIssue(String(repoId), issueNumber);
-  if (existingPayout) {
-    log(`Payout already processed for repo ${repoId} issue #${issueNumber}. TX: ${existingPayout.transactionHash}. Skipping duplicate payout.`, 'webhook-issue');
-    return;
-  }
-
-  // 8. Distribute Reward
+  // 7. Distribute Reward
   try {
-    log(`Attempting distribution for issue #${issueNumber} to ${contributor.xdcWalletAddress}`, 'webhook-issue');
+    log(`💰 Attempting distribution for issue #${issueNumber}${closingPRNumber ? ` (PR #${closingPRNumber})` : ''}`, 'webhook-issue');
+    log(`   Contributor: ${closingPRAuthor}`, 'webhook-issue');
+    log(`   Wallet: ${contributor.xdcWalletAddress}`, 'webhook-issue');
+    log(`   Amount: ${amountStr} ${currency}`, 'webhook-issue');
+
     // USE REPOSITORY-SPECIFIC issueNumber FOR BLOCKCHAIN CALLS
     const result = await blockchain.distributeReward(
       repoId,
@@ -1358,7 +1394,7 @@ export async function handleIssueClosed(payload: WebhookPayload, installationId:
       contributor.xdcWalletAddress,
       poolManager.id
     );
-    log(`Distribution successful for issue #${issueNumber}. TX: ${result?.hash || 'N/A'}`, 'webhook-issue');
+    log(`✅ Distribution successful for issue #${issueNumber}. TX: ${result?.hash || 'N/A'}`, 'webhook-issue');
 
     // Record the payout to prevent duplicate processing
     // Note: This records the POOL bounty payout. The fee breakdown will be calculated by the relayer.
