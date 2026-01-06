@@ -97,31 +97,22 @@ Roxonn's GenAI tool will help you:
 ### Step 1: Register Your Repository
 1. From your dashboard, click **Register Repository**
 2. Select the GitHub repository you want to fund
-3. Configure repository settings:
-   - **Repository Visibility**: Public or Private
-   - **Contribution Types**: Choose which types of contributions qualify (bug fixes, features, documentation, tests, etc.)
-   - **Minimum PR Requirements**: Define quality standards for contributions
-   - **Auto-approval**: Enable or disable automatic reward distribution
+3. The platform will automatically:
+   - Detect repository visibility (public or private) from GitHub
+   - Link the Roxonn GitHub App installation if available
+   - Create the registration record in the Roxonn platform
 
 ---
 
 ### Step 2: Configure Repository Settings
 
-### Example Repository Configuration 
-```yaml
-repository:
-  name: "your-project-name"
-  funding_token: "XDC"  # or "ROXN", "USDC"
-  bounty_types:
-    - bug_fixes
-    - features
-    - documentation
-    - tests
-  requirements:
-    min_tests: 80%      # Minimum test coverage
-    code_review: true   # Requires code review
-    ci_passing: true    # Requires CI to pass
-```
+After registering your repository, you can configure settings through the Roxonn dashboard:
+
+- **Funding Currency**: Choose default currency (XDC, ROXN, or USDC) for bounties
+- **Visibility**: Repositories maintain their GitHub visibility (public/private)
+- **GitHub App Integration**: Ensure the Roxonn GitHub App is installed for webhook functionality
+
+Additional repository-level settings are managed through GitHub App permissions and your repository's GitHub settings.
 
 ---
 
@@ -144,24 +135,12 @@ Roxonn supports the following tokens for funding repositories:
 - Click **“Fund Repository”**
 
 #### Step 2: Choose Funding Method
-- **One-time Funding** - Add a lump sum to the repository pool  
-- **Recurring Funding** - Set up automatic monthly funding  
-- **Per-Issue Funding** - Fund specific issues individually  
+- **Pool Funding** - Add funds to the repository pool that can be allocated to any issue
+- **Per-Issue Funding** - Fund specific issues individually via bounty allocation
 
 #### Step 3: Set Funding Amount
+Use the dashboard to specify the amount in XDC, ROXN, or USDC you want to add to the repository pool.
 
-```javascript
-// Example funding structure
-const funding = {
-  total_pool: "1000 XDC",
-  distribution: {
-    bug_fixes: "50 XDC",
-    small_features: "100 XDC",
-    major_features: "500 XDC",
-    documentation: "50 XDC"
-  }
-};
-```
 ---
 
 ### Funding Strategies
@@ -196,8 +175,12 @@ const funding = {
 
 ---
 
-## Adding Bounties via GitHub Comments 
-For detailed bot command reference, see Bot Commands Documentation
+## Adding Bounties via GitHub Comments
+
+You can add bounties directly from GitHub issue comments using these commands:
+- `/bounty <amount> <XDC|ROXN|USDC>` - Allocate a bounty with specified amount and currency
+- `/bounty` - Request a bounty (pool manager will set amount)
+- `@roxonn bounty <amount> <XDC|ROXN|USDC>` - Alternative syntax with bot mention
 
 ---
 
@@ -225,26 +208,6 @@ flowchart TD
     style K fill:#e8f5e8
     style E fill:#ffebee
 ```
----
-
-### Reward Distribution Rules
-
-```yaml
-rewards:
-  distribution:
-    - trigger: "PR merged"
-      conditions:
-        - "tests_passing: true"
-        - "review_approved: true"
-        - "no_conflicts: true"
-      action: "auto_pay 80%"
-    
-    - trigger: "30 days after merge"
-      conditions:
-        - "no_bugs_reported: true"
-      action: "pay_remaining 20%"
-```
-
 ---
 
 ### Manual Overrides
@@ -347,10 +310,10 @@ CI/CD integration enables teams to:
 
 This helps maintain consistent code quality while enabling automated reward workflows.
 
-#### GitHub Actions Integration (Conceptual Example)
+#### GitHub Actions Integration (Future Feature - Conceptual Example)
 
-The following example demonstrates how Roxonn can be incorporated into a GitHub Actions workflow **at a high level**.  
-Concrete API endpoints and payment triggers may vary based on backend configuration and should reference the current server implementation.
+The following example demonstrates how Roxonn **could potentially** be incorporated into a GitHub Actions workflow in the future.
+**Note:** This GitHub Action does not currently exist. When implemented, concrete API endpoints and payment triggers will be documented separately and should reference the current server implementation.
 
 ```yaml
 name: Roxonn Bounty Verification
@@ -372,9 +335,9 @@ jobs:
 ```
 ---
 
-# Troubleshooting
+## Troubleshooting
 
-## Common Issues and Solutions
+### Common Issues and Solutions
 
 ### Issue: Payment Not Processing
 
@@ -407,26 +370,25 @@ jobs:
 
 - **Documentation:** [docs.roxonn.com](https://docs.roxonn.com)
 - **Related Documentation:**
-- [Bot Commands Documentation](docs/BOT_COMMANDS.md)  <!-- relative path -->
-- [Private Repository Features](docs/FEATURES/PRIVATE_REPOS.md)
-- [Security Considerations](docs/SECURITY.md)
+  - [Private Repository Features](FEATURES/PRIVATE_REPOS.md)
+  - [Security Considerations](SECURITY.md)
 
 - **Discord Community:** Join for real-time support
 - **GitHub Issues:** Report bugs or request features
 
 ---
 
-# Best Practices
+## Best Practices
 
-## For Successful Project Funding
+### For Successful Project Funding
 
 1. **Start Small:** Begin with modest bounties to test the system  
 2. **Clear Requirements:** Write detailed issue descriptions  
 3. **Quick Reviews:** Respond promptly to PR submissions  
 4. **Fair Compensation:** Research market rates for similar work  
-5. **Regular Updates:** Keep your funding pool replenished  
+5. **Regular Updates:** Keep your funding pool replenished
 
-## Community Building
+### Community Building
 
 1. **Recognize Contributors:** Publicly acknowledge good work  
 2. **Provide Feedback:** Help contributors improve  
@@ -454,18 +416,18 @@ jobs:
 
 ---
 
-# Financial Management
+## Financial Management
 
-1. **Budget Planning:** Allocate funds for different types of work  
-2. **Track Expenses:** Monitor your funding pool balance  
-3. **Diversify Tokens:** Consider using multiple token types  
-4. **Tax Considerations:** Consult with a tax professional about crypto payments  
+1. **Budget Planning:** Allocate funds for different types of work
+2. **Track Expenses:** Monitor your funding pool balance
+3. **Diversify Tokens:** Consider using multiple token types
+4. **Tax Considerations:** Consult with a tax professional about crypto payments
 
 ---
 
-# Security Considerations
+## Security Considerations
 
-## Protecting Your Funds
+### Protecting Your Funds
 
 1. **Use Hardware Wallets:** For large amounts, use cold storage  
 2. **Enable 2FA:** On both GitHub and Roxonn accounts  
@@ -474,14 +436,14 @@ jobs:
 
 ---
 
-# Smart Contract Safety
+## Smart Contract Safety
 
-- **Contracts are audited and open-source**  
-- **Use only verified contract addresses**  
-- **Test on Apothem Testnet first**  
-- **Start with small transaction amounts**  
+- **Contracts are audited and open-source**
+- **Use only verified contract addresses**
+- **Test on Apothem Testnet first**
+- **Start with small transaction amounts**
 
-# Glossary
+## Glossary
 
 - **Pool Manager:** Project maintainer who funds and manages a repository  
 - **Bounty:** Reward offered for completing a specific task  
@@ -491,35 +453,9 @@ jobs:
 
 ---
 
-# Appendix
+## Appendix
 
-## API Reference for Pool Managers
-
-```typescript
-// Complete API interface for Pool Managers
-interface PoolManagerAPI {
-  // Repository Management
-  registerRepository(repo: GitHubRepo): Promise<Repository>;
-  updateRepositorySettings(id: string, settings: RepoSettings): Promise<void>;
-  fundRepository(id: string, amount: string, token: TokenType): Promise<Transaction>;
-  
-  // Reward Management
-  setBounty(issueId: string, amount: string): Promise<void>;
-  adjustReward(prId: string, newAmount: string): Promise<void>;
-  distributeReward(prId: string, recipients: ContributorSplit[]): Promise<Transaction>;
-
-  // Analytics
-  getRepositoryMetrics(id: string): Promise<RepositoryMetrics>;
-  getFinancialReport(id: string, timeframe: Timeframe): Promise<FinancialReport>;
-  
-  // Contributor Management
-  blacklistContributor(repoId: string, contributorId: string, reason: string): Promise<void>;
-  whitelistContributor(repoId: string, contributorId: string): Promise<void>;
-}
-```
----
-
-## API Access (Overview)
+### API Access (Overview)
 
 Roxonn exposes REST APIs to support repository balance management, funding operations, and payment status tracking.
 
@@ -535,11 +471,11 @@ This guide focuses on the **Pool Manager workflow and responsibilities** rather 
 
 ---
 
-# Need Help?
+## Need Help?
 
-- **Discord:** Join our community for real-time support  
-- **FAQ:** Check our FAQ page for common questions  
-- **Email:** [pool-managers@roxonn.com](mailto:pool-managers@roxonn.com)  
+- **Discord:** Join our community for real-time support
+- **FAQ:** Check our FAQ page for common questions
+- **Email:** [connect@roxonn.com](mailto:connect@roxonn.com)
 
 ---
 
