@@ -56,6 +56,8 @@ Create a `server/.env` file. At a minimum, you need these to bypass errors:
 | `JWT_SECRET` | Any random string for session security. |
 | `SESSION_SECRET` | Secret pour les sessions Express. |
 | `ENCRYPTION_KEY` | Clé 32 chars pour chiffrer les wallets. |
+| `GITHUB_APP_ID` | ID de votre GitHub App (pour les repos privés). || `SESSION_SECRET` | Secret pour les sessions Express. |
+| `ENCRYPTION_KEY` | Clé 32 chars pour chiffrer les wallets. |
 | `GITHUB_APP_ID` | ID de votre GitHub App (pour les repos privés). |
 ---
 
