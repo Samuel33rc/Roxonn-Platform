@@ -54,11 +54,7 @@ Create a `server/.env` file. At a minimum, you need these to bypass errors:
 | `XDC_RPC_URL` | Use `https://erpc.apothem.network` for testing. |
 | `DUAL_CURRENCY_REWARDS_CONTRACT_ADDRESS` | The main rewards proxy address. |
 | `JWT_SECRET` | Any random string for session security. |
-| `SESSION_SECRET` | Secret pour les sessions Express. |
-| `ENCRYPTION_KEY` | Clé 32 chars pour chiffrer les wallets. |
-| `GITHUB_APP_ID` | ID de votre GitHub App (pour les repos privés). || `SESSION_SECRET` | Secret pour les sessions Express. |
-| `ENCRYPTION_KEY` | Clé 32 chars pour chiffrer les wallets. |
-| `GITHUB_APP_ID` | ID de votre GitHub App (pour les repos privés). |
+
 ---
 
 ## 🎯 4. The "First Bounty" Workflow
