@@ -45,15 +45,35 @@ Before diving into the code, understand the flow:
 ---
 
 ## 🔑 3. Configuration (The .env Checklist)
-Create a `server/.env` file. At a minimum, you need these to bypass errors:
+Create `server/.env` from the example file, then fill in the values:
+```bash
+cp server/.env.example server/.env
+```
+
+The server calls `validateConfig()` on startup and **will throw if any required variable is missing**. Here is the full list:
 
 | Variable | Purpose |
 | :--- | :--- |
 | `DATABASE_URL` | Your PostgreSQL connection string. |
-| `GITHUB_CLIENT_ID/SECRET` | Obtain from GitHub Developer Settings (OAuth App). |
-| `XDC_RPC_URL` | Use `https://erpc.apothem.network` for testing. |
-| `DUAL_CURRENCY_REWARDS_CONTRACT_ADDRESS` | The main rewards proxy address. |
-| `JWT_SECRET` | Any random string for session security. |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID (Developer Settings). |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret. |
+| `SESSION_SECRET` | Random string for Express session security. |
+| `XDC_RPC_URL` | Use `https://erpc.apothem.network` for testnet. |
+| `DUAL_CURRENCY_REWARDS_CONTRACT_ADDRESS` | The main rewards proxy address (or `REPO_REWARDS_CONTRACT_ADDRESS`). |
+| `FORWARDER_CONTRACT_ADDRESS` | Meta-transaction forwarder contract address. |
+| `PRIVATE_KEY` | Relayer wallet private key (for on-chain transactions). |
+| `ENCRYPTION_KEY` | Key used to encrypt sensitive data at rest. |
+| `BASE_URL` | Backend URL, e.g. `http://localhost:5000`. |
+| `FRONTEND_URL` | Frontend URL, e.g. `http://localhost:5173`. |
+| `GITHUB_APP_ID` | GitHub App ID (from GitHub App settings). |
+| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (PEM format). |
+| `GITHUB_APP_WEBHOOK_SECRET` | GitHub App webhook secret. |
+| `GITHUB_APP_NAME` | GitHub App name (slug). |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI API endpoint URL. |
+| `AZURE_OPENAI_KEY` | Azure OpenAI API key. |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Azure OpenAI deployment/model name. |
+
+> **Tip:** For a quick start, copy all values from `server/.env.example` and only change the secrets and DB URL. See `server/config.ts` for the full validation logic.
 
 ---
 
